@@ -1,0 +1,99 @@
+steps:
+
+#================================================================================================
+# Key Vault
+#================================================================================================
+
+# Add the ado agent ip to the key vault.
+- task: AzureCLI@2
+  displayName: commonBefore - Key Vault Whitelist
+  condition: eq(variables['keyvaultWhitelist'], 'true')
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: ps
+    scriptLocation: inlineScript
+    failOnStandardError: true
+    inlineScript: |
+      $agentIp = Invoke-RestMethod -Uri "https://icanhazip.com"
+      $agentIp = $agentIp.Trim()
+      Write-Host "Agent ip is: $agentIp"
+      Write-Host "Key vault name is : $(keyvaultName), and key vault subscription id is : $(keyvaultSubscriptionId)"
+      Write-Host "Adding agent ip to key vault"
+      az keyvault network-rule add --name $(keyvaultName) --ip-address $agentIp --subscription $(keyvaultSubscriptionId)
+
+# Get secrets from key vault.
+- task: AzureKeyVault@2
+  displayName: commonBefore - Key Vault Secrets
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    KeyVaultName: $(keyvaultName)
+    SecretsFilter: '*'
+    RunAsPreJob: false
+
+#================================================================================================
+# Terraform State
+#================================================================================================
+
+# Add the ado agent ip to the terraform state storage account.
+- task: AzureCLI@2
+  displayName: commonBefore - TFState Whitelist
+  condition: eq(variables['tfStateWhitelist'], 'true')
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: ps
+    scriptLocation: inlineScript
+    failOnStandardError: true
+    inlineScript: |
+      $agentIp = Invoke-RestMethod -Uri "https://icanhazip.com"
+      $agentIp = $agentIp.Trim()
+      Write-Host "Agent ip is: $agentIp"
+      Write-Host "TFState resource group is : $(tfstateResourceGroup)"
+      Write-Host "TFState storage account is : $(tfstateStorageAccount)"
+      Write-Host "Adding the network rule ..."
+      az storage account network-rule add -g $(tfstateResourceGroup) --account-name $(tfstateStorageAccount) --ip-address $agentIp
+      Write-Host "Verifying the network rule ..."
+      az storage account network-rule list -g $(tfstateResourceGroup) --account-name $(tfstateStorageAccount)
+      Write-Host "Waiting for the network rule to apply ..."
+      for ($i = 30; $i -gt 0; $i -= 5) {
+        Write-Host "Time remaining: $i seconds ..."
+        Start-Sleep -Seconds 5
+      }
+      Write-Host "Testing the network rule ..."
+      az storage container list --auth-mode login --account-name $(tfstateStorageAccount)
+
+#================================================================================================
+# AKS
+#================================================================================================
+
+# Export cluster details.
+- pwsh: |
+    Write-Host "The aks resource group is: rg-$(targetEnv)-$(resourceIdentifier)"
+    Write-Host "The aks cluster name is: aks-$(targetEnv)-$(resourceIdentifier)"
+  displayName: commonBefore - AKS Details
+
+# Add the ado agent ip to the aks cluster.
+- task: AzureCLI@2
+  displayName: commonBefore - AKS Whitelist
+  condition: eq(variables['aksWhitelist'], 'true')
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: ps
+    scriptLocation: inlineScript
+    failOnStandardError: true
+    inlineScript: |
+      $agentIp = Invoke-RestMethod -Uri "https://icanhazip.com"
+      $agentIp = $agentIp.Trim() + "/32"
+      Write-Host "Agent ip is: $agentIp"
+      $resourceGroupExists = az group exists --name rg-$(targetEnv)-$(resourceIdentifier)
+      if ($resourceGroupExists -eq "true") {
+        $aksClusterExists = az aks show --name aks-$(targetEnv)-$(resourceIdentifier) --resource-group rg-$(targetEnv)-$(resourceIdentifier) --query "name" -o tsv --only-show-errors
+        if ($aksClusterExists -eq "aks-$(targetEnv)-$(resourceIdentifier)") {
+          $aksInfo = az aks show --resource-group rg-$(targetEnv)-$(resourceIdentifier) --name aks-$(targetEnv)-$(resourceIdentifier) --query apiServerAccessProfile --output json | ConvertFrom-Json
+          $authorizedIpRanges = $aksInfo.authorizedIpRanges -join ','
+          Write-Host "Existing allowed list is: $authorizedIpRanges"
+          Write-Host "New allowed list is: $authorizedIpRanges,$agentIp"
+          az aks update --resource-group rg-$(targetEnv)-$(resourceIdentifier) --name aks-$(targetEnv)-$(resourceIdentifier) --api-server-authorized-ip-ranges $authorizedIpRanges,$agentIp
+        }
+      } else {
+        Write-Host "The resource group rg-$(targetEnv)-$(resourceIdentifier) does not exist."
+      }

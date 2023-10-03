@@ -1,0 +1,16 @@
+---
+# SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: votinganalytics
+  namespace: titan
+spec:
+  selector:
+    app: votinganalytics
+  type: NodePort           # The type of service port e.g.ClusterIP (Default), NodePort or LoadBalancer.
+  ports:
+  - protocol: TCP
+    port: 8080             # The port exposed by the service.
+    targetPort: 8080       # The port to forward to in the pod/deployment.
+---

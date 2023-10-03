@@ -1,0 +1,48 @@
+steps:
+
+# Install specific version of terraform.
+- task: TerraformInstaller@0
+  displayName: terraformPlanDestroy - Installer
+  inputs:
+    terraformVersion: $(terraformVersion)
+
+# Run terraform init.
+- pwsh: |
+    terraform init -backend-config="key=env-$(targetEnv).tfstate" -backend-config="access_key=$(KV-ARM-ACCESS-KEY)"
+  displayName: terraformPlanDestroy - Init
+  workingDirectory: 'terraform'
+
+# Run terraform validate.
+- pwsh: |
+    terraform validate
+  displayName: terraformPlanDestroy - Validate
+  workingDirectory: 'terraform'
+
+# Terraform format check.
+- pwsh: |
+    terraform fmt -recursive -check
+  displayName: terraformPlanDestroy - Format
+  workingDirectory: 'terraform'
+
+# Run terraform plan destroy.
+- pwsh: |
+    terraform plan -var-file="vars/global.tfvars" -var-file="vars/env-$(targetTFVars).tfvars" -destroy -out plandestroy
+    terraform show -no-color plandestroy > plandestroy.txt
+  displayName: terraformPlanDestroy - Destroy
+  workingDirectory: 'terraform'
+  env:
+    ARM_CLIENT_SECRET: $(KV-ARM-CLIENT-SECRET)
+
+# Publish plandestroy.txt as an artifact to be reviewed before manual validation.
+- task: PublishPipelineArtifact@1
+  displayName: terraformPlanDestroy - plandestroy.txt
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)/terraform/plandestroy.txt'
+    artifactName: 'plandestroy.txt'
+
+# Publish tfplan to be used by 'terraform apply -input=false plandestroy'.
+- task: PublishPipelineArtifact@1
+  displayName:  terraformPlanDestroy - plandestroy
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)/terraform/plandestroy'
+    artifactName: 'plandestroy'

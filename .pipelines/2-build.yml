@@ -1,0 +1,46 @@
+trigger:
+  branches:
+    include:
+      - '*'
+  paths:
+    include:
+    - /src/*
+
+pr:
+- none
+
+variables:
+  acrRepoAnalytics:     'votinganalytics'          # The container registry repo name.
+  acrRepoVoting:        'votingapp'                # The container registry repo name.
+  acrName:              'acrdlnteudemoapps210713'  # Update here.
+  adoServiceConnection: 'payg2106'                 # Update here.
+
+jobs:
+
+# Build & Push Docker Image to ACR.
+- job: 'buildAndPushDockerAnalytics'
+  displayName: 'Analytics - Build & Push Docker Image to ACR'
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+
+  - template: templates/dockerBuild.yml
+    parameters:
+      acrRepo: $(acrRepoAnalytics)
+      acrName: $(acrName)
+      tag: '$(Build.BuildNumber)-$(Build.SourceBranchName)'
+      dockerPath: "src/analytics"
+
+# Build & Push Docker Image to ACR.
+- job: 'buildAndPushDockerVoting'
+  displayName: 'Voting - Build & Push Docker Image to ACR'
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+
+  - template: templates/dockerBuild.yml
+    parameters:
+      acrRepo: $(acrRepoVoting)
+      acrName: $(acrName)
+      tag: '$(Build.BuildNumber)-$(Build.SourceBranchName)'
+      dockerPath: "src/voting"

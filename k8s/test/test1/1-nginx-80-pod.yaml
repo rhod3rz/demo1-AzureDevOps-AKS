@@ -1,0 +1,19 @@
+---
+# POD
+# kubectl exec -it nginx -n titan -- /bin/sh
+# kubectl port-forward pod/nginx 8081:80 -n titan # Browse to http://localhost:8081
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: titan
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+    ports:
+    - containerPort: 80
+      protocol: TCP
+---

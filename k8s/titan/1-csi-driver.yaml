@@ -1,0 +1,57 @@
+# Update name, userAssignedIdentityID & keyvaultName values.
+
+---
+# SECRET PROVIDER CLASS
+# kubectl get secretproviderclass -A
+# kubectl describe secretproviderclass spc-kv-prd-titan-230101 -n titan
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: spc-kv-prd-titan-230930 # UPDATE HERE < spc = secret provider class
+  namespace: titan
+spec:
+  provider: azure
+
+#================================================================================================
+# Mounted Files - These secrets can be mounted in pods as files.
+#================================================================================================
+
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "true"
+    userAssignedIdentityID: "b4ab67ab-d550-423c-8b37-7bd070f9a2bc" # UPDATE HERE < This is the aks_uai_agentpool_client_id value.
+    tenantId: "73578441-dc3d-4ecd-a298-fc5c6f40e191" # UPDATE HERE
+    keyvaultName: "kv-prd-titan-230930" # UPDATE HERE
+
+    objects: |
+      array:
+        - |
+          objectName: KV-APPLICATIONINSIGHTS-CONNECTION-STRING
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: KV-SQL-ADMIN-USERNAME
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: KV-SQL-ADMIN-PASSWORD
+          objectType: secret
+          objectVersion: ""
+
+#================================================================================================
+# Environment Variables - These secrets can be mounted in pods as environment variables.
+#================================================================================================
+
+  secretObjects:
+  - secretName: so-titan # so = secret object
+    type: Opaque
+
+    data:
+    - objectName: KV-APPLICATIONINSIGHTS-CONNECTION-STRING
+      key: APPLICATIONINSIGHTS-CONNECTION-STRING
+    - objectName: KV-SQL-ADMIN-USERNAME
+      key: SQL-ADMIN-USERNAME
+    - objectName: KV-SQL-ADMIN-PASSWORD
+      key: SQL-ADMIN-PASSWORD
+
+---

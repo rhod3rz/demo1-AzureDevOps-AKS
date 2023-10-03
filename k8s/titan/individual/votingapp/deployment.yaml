@@ -1,0 +1,74 @@
+# Update MYSQL_HOST, MYSQL_USER & secretProviderClass values.
+
+---
+# DEPLOYMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: votingapp
+  namespace: titan
+  labels:
+    app: votingapp
+  annotations:
+    kubernetes.io/change-cause: latest
+spec:
+  selector:                    # Specifies a label selector for the pods targeted by this deployment.
+    matchLabels:
+      app: votingapp
+  replicas: 1                  # Specifies the number of desired Pods
+  strategy:                    # This strategy says we want to add pods one at a time (maxSurge), and there must always be 3 pods ready (replicas).
+    type: RollingUpdate        # Type 'rolling' or 'recreate'.
+    rollingUpdate:             # The deployment updates pods in a rolling update fashion.
+      maxSurge: 1              # maxSurge is the maximum number of new pods that will be created at a time.
+      maxUnavailable: 0        # maxUnavailable is the maximum number of old pods that will be deleted at a time.
+  minReadySeconds: 10          # The min # of secs a new pod should be ready without any of its containers crashing, for it to be considered available.
+  revisionHistoryLimit: 3      # The number of old replicasets to retain to allow rollback.
+  template:                    # The pod template. It has exactly the same schema as a pod, except it is nested and does not have an apiVersion or kind.
+    metadata:
+      name: votingapp
+      labels:
+        app: votingapp
+    spec:
+      containers:
+      - name: votingapp
+        image: "acrdlnteudemoapps210713.azurecr.io/votingapp:latest"
+        imagePullPolicy: Always
+        resources:
+          requests:            # Minimum amount of resources requested.
+            cpu: 50m           # 1/20th of a vCPU; a vCPU is 1000m (millicores).
+            memory: 64Mi       # 64 Mebibytes
+          limits:              # Maximum amount of resources requested.
+            cpu: 100m          # 1/10th of a CPU.
+            memory: 128Mi      # 256 Mebibytes.
+        ports:
+        - containerPort: 8080  # This container exposes port 8080.
+          protocol: TCP
+        volumeMounts:          # Volume mount for csi-driver kv secrets.
+        - name: kv-secrets
+          mountPath: "/mnt/secrets"
+          readOnly: true
+        env:
+        - name: MYSQL_HOST
+          value: "mysql-prd-titan-230930.mysql.database.azure.com"
+        - name: MYSQL_USER
+          value: "mysqladmin@mysql-prd-titan-230930"
+        - name: MYSQL_DATABASE
+          value: "azurevote"
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: so-titan
+              key: SQL-ADMIN-PASSWORD
+        - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: so-titan
+              key: APPLICATIONINSIGHTS-CONNECTION-STRING
+      volumes:
+        - name: kv-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "spc-kv-prd-titan-230930"
+---

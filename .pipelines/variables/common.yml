@@ -1,0 +1,51 @@
+variables:
+
+ # Terraform application_code & unique_id from global.tfvars.
+- name: resourceIdentifier
+  value: 'titan-230930'
+
+# The name of the ado service connection.
+- name: adoServiceConnection
+  value: 'payg2106'
+
+# The azure tenant id.
+- name: azureTenantId
+  value: '73578441-dc3d-4ecd-a298-fc5c6f40e191'
+
+# The name of the seed key vault.
+- name: keyvaultName
+  value: 'kv-core-210713'
+
+# The name of the key vault subscription id.
+- name: keyvaultSubscriptionId
+  value: '2bc7b65e-18d6-42ae-afb2-e66d50be6b05'
+
+# The name of the tfstate resource group.
+- name: tfstateResourceGroup
+  value: 'rg-core-01'
+
+# The name of the tfstate storage account.
+- name: tfstateStorageAccount
+  value: 'sadlterraformstate210713'
+
+# Sets targetEnv (used for naming Azure resources).
+- name: targetEnv
+  ${{ if contains(variables['Build.SourceBranch'], 'feature') }}:
+    value: $(Build.SourceBranchName)
+  ${{ if eq(variables['Build.SourceBranchName'], 'dev') }}:
+    value: dev
+  ${{ if eq(variables['Build.SourceBranchName'], 'stg') }}:
+    value: stg
+  ${{ if eq(variables['Build.SourceBranchName'], 'prd') }}:
+    value: prd
+
+# Sets targetTFVars (used to point to correct tfvars when running tf init).
+- name: targetTFVars
+  ${{ if contains(variables['Build.SourceBranch'], 'feature') }}:
+    value: feature
+  ${{ if eq(variables['Build.SourceBranchName'], 'dev') }}:
+    value: dev
+  ${{ if eq(variables['Build.SourceBranchName'], 'stg') }}:
+    value: stg
+  ${{ if eq(variables['Build.SourceBranchName'], 'prd') }}:
+    value: prd

@@ -1,0 +1,86 @@
+trigger:
+- none
+
+pr:
+- none
+
+variables:
+- template: variables/common.yml
+- name: keyvaultWhitelist
+  value: 'false'
+- name: tfStateWhitelist
+  value: 'false'
+- name: aksWhitelist
+  value: 'false'
+- name: terraformVersion
+  value: 1.5.6
+
+stages:
+
+  # Terraform 'plan' the web app infrastructure.
+  - stage: 'terraformPlanDestroy'
+    displayName: 'Terraform - Plan (Destroy)'
+    pool:
+      vmImage: 'windows-latest'
+    jobs:
+
+    # Initiate and plan terraform.
+    - job: terraformInit
+      displayName: 'Init & Plan (Destroy)'
+      steps:
+
+      # If feature branch update env-feature.tfvars file.
+      - pwsh: |
+          $content = get-content .\terraform\vars\env-feature.tfvars
+          $content.replace('ftr','$(targetEnv)') | set-content .\terraform\vars\env-feature.tfvars
+          get-content .\terraform\vars\env-feature.tfvars
+        displayName: 'Update Feature Branch TFVars'
+        condition: contains(variables['Build.SourceBranch'], 'feature')
+
+      # Run common before scripts e.g. adding ado agent ip's to key vault, storage account & aks cluster.
+      - template: templates/commonBefore.yml
+
+      # Run terraform plan.
+      - template: templates/terraformPlanDestroy.yml
+
+      # Run common after scripts e.g. removing ado agent ip's from key vault, storage account & aks cluster.
+      - template: templates/commonAfter.yml
+
+  # Manual step to approve the terraform plan.
+  - stage: 'waitForValidationTerraform'
+    displayName: 'Wait for Validation'
+    dependsOn:
+    - terraformPlanDestroy
+    jobs:
+
+    # Manual step to approve the terraform plan.
+    - job: 'waitForValidationTerraform'
+      displayName: 'Wait for Validation'
+      pool: server
+      timeoutInMinutes: 4320 # Job times out in 3 days.
+      steps:
+
+      # Wait for approval.
+      - template: templates/terraformWait.yml
+
+  # Terraform 'apply' the azure infrasturcture.
+  - stage: 'terraformApplyDestroy'
+    displayName: 'Terraform - Apply (Destroy)'
+    pool:
+      vmImage: 'windows-latest'
+    dependsOn:
+    - waitForValidationTerraform
+    jobs:
+
+    - job: 'terraformApplyDestroy'
+      displayName: 'Apply (Destroy)'
+      steps:
+
+      # Run common before scripts e.g. adding ado agent ip's to key vault, storage account & aks cluster.
+      - template: templates/commonBefore.yml
+
+      # Run terraform apply.
+      - template: templates/terraformApplyDestroy.yml
+
+      # Run common after scripts e.g. removing ado agent ip's from key vault, storage account & aks cluster.
+      - template: templates/commonAfter.yml

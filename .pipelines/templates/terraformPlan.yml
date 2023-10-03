@@ -1,0 +1,70 @@
+steps:
+
+# Install specific version of terraform.
+- task: TerraformInstaller@0
+  displayName: terraformPlan - Installer
+  inputs:
+    terraformVersion: $(terraformVersion)
+
+# Run terraform init.
+- pwsh: |
+    terraform init -backend-config="key=env-$(targetEnv).tfstate" -backend-config="access_key=$(KV-ARM-ACCESS-KEY)"
+  displayName: terraformPlan - Init
+  workingDirectory: 'terraform'
+
+# Run terraform validate.
+- pwsh: |
+    terraform validate
+  displayName: terraformPlan - Validate
+  workingDirectory: 'terraform'
+
+# Terraform format check.
+- pwsh: |
+    terraform fmt -recursive -check
+  displayName: terraformPlan - Format
+  workingDirectory: 'terraform'
+
+# Run terraform plan.
+- pwsh: |
+    terraform plan -var-file="vars/global.tfvars" -var-file="vars/env-$(targetTFVars).tfvars" -out tfplan -detailed-exitcode
+      $retVal = $LASTEXITCODE
+      if ($retVal -eq 2) {
+        Write-Host "##vso[task.setvariable variable=planChanged;isOutput=true]true"
+      }
+      else {
+        Write-Host "##vso[task.setvariable variable=planChanged;isOutput=true]false"
+      }
+    terraform show -no-color tfplan > tfplan.txt
+  displayName: terraformPlan - Plan
+  name: plan
+  workingDirectory: 'terraform'
+  env:
+    ARM_CLIENT_SECRET: $(KV-ARM-CLIENT-SECRET)
+
+# planChanged
+- pwsh: |
+    Write-Host "planChanged variable value: $env:MY_MAPPED_ENV_VAR"
+  displayName: terraformPlan - planChanged
+  env:
+    MY_MAPPED_ENV_VAR: $(plan.planChanged)
+
+# Publish tfplan.txt as an artifact to be reviewed before manual validation.
+- task: PublishPipelineArtifact@1
+  displayName: terraformPlan - tfplan.txt
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)/terraform/tfplan.txt'
+    artifactName: 'tfplan.txt'
+
+# Publish tfplan to be used by 'terraform apply -input=false tfplan'.
+- task: PublishPipelineArtifact@1
+  displayName: terraformPlan - tfplan
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)/terraform/tfplan'
+    artifactName: 'tfplan'
+
+# Run TFSec.
+- task: tfsec@1
+  displayName: terraformPlan - TFSec
+  condition: eq(variables['runTFSec'], 'true')
+  inputs:
+    args: --force-all-dirs --soft-fail

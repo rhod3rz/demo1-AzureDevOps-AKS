@@ -1,0 +1,44 @@
+---
+# POD
+# kubectl exec -it nginx -n titan -- /bin/sh
+# kubectl port-forward pod/nginx 8081:80 -n titan # Browse to http://localhost:8081
+# env | grep SQL*
+# cat /mnt/secrets/KV-SQL-ADMIN-USERNAME
+# cat /mnt/secrets/KV-SQL-ADMIN-PASSWORD
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: titan
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:latest
+    ports:
+    - containerPort: 80
+      protocol: TCP
+    volumeMounts:
+    - name: kv-secrets
+      mountPath: "/mnt/secrets"
+      readOnly: true
+    env:
+    - name: SQL_ADMIN_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: so-titan
+          key: SQL-ADMIN-USERNAME
+    - name: SQL_ADMIN_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: so-titan
+          key: SQL-ADMIN-PASSWORD
+  volumes:
+    - name: kv-secrets
+      csi:
+        driver: secrets-store.csi.k8s.io
+        readOnly: true
+        volumeAttributes:
+          secretProviderClass: "spc-kv-prd-titan-230930" # UPDATE HERE
+---

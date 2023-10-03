@@ -1,0 +1,28 @@
+---
+# INGRESS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: votinganalytics
+  namespace: titan
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway # < add annotation indicating the ingress to use.
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"       # < add annotation to redirect 80 requests to 443.
+    cert-manager.io/cluster-issuer: letsencrypt-issuer     # < add annotation indicating the cert issuer to use.
+spec:
+  tls: # < placing a host in the TLS config will determine what ends up in the cert's subjectAltNames.
+  - hosts:
+    - prd.rhod3rz.com           # UPDATE HERE
+    secretName: prd.rhod3rz.com # UPDATE HERE < cert-manager will store the created certificate in this secret.
+  rules:
+  - host: prd.rhod3rz.com       # UPDATE HERE < Ensure public dns has been updated with the pip of appgw.
+    http:
+      paths:
+      - pathType: Prefix
+        path: /analytics        # < the path to the landing page e.g. https://prd.rhod3rz.com/analytics; if left as / then you'll get a 502 bad gateway error.
+        backend:
+          service:
+            name: votinganalytics
+            port:
+              number: 8080
+---

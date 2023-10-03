@@ -1,0 +1,20 @@
+---
+# CLUSTERISSUER
+# kubectl get clusterissuer      # Check if the clusterissuer has been created and ready status is true.
+# kubectl describe clusterissuer # Check if the clusterissuer has any error events logged.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-issuer
+spec:
+  acme:
+    email: rhod3rz@outlook.com                                      # UPDATE HERE < email to contact you about expiring certificates & issues.
+    server: https://acme-staging-v02.api.letsencrypt.org/directory  # < use this staging issuer when testing to avoid hitting rate limits on prod (50 per week).
+    # server: https://acme-v02.api.letsencrypt.org/directory        # < use this prod issuer when ready to go live.
+    privateKeySecretRef:
+      name: letsencrypt-issuer                                        # < secret resource used to store the account's private key.
+    solvers:
+    - http01:
+        ingress:
+          class: azure/application-gateway
+---

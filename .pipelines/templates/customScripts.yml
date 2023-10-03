@@ -1,0 +1,17 @@
+steps:
+
+#================================================================================================
+# Create Database
+#================================================================================================
+
+- task: AzureMysqlDeployment@1
+  displayName: customScripts - Create Database
+  continueOnError: true
+  inputs:
+    azureSubscription: 'payg2106'
+    ServerName:        'mysql-$(targetEnv)-$(resourceIdentifier).mysql.database.azure.com'
+    SqlUsername:       'mysqladmin@mysql-$(targetEnv)-$(resourceIdentifier)'
+    SqlPassword:       'Password123'
+    TaskNameSelector:  'InlineSqlTask'
+    SqlInline:         'CREATE TABLE IF NOT EXISTS `azurevote`.`azurevote` (`voteid` INT NOT NULL AUTO_INCREMENT,`votevalue` VARCHAR(45) NULL,PRIMARY KEY (`voteid`));'
+    IpDetectionMethod: 'AutoDetect'

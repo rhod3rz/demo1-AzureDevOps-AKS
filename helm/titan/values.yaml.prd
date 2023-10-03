@@ -1,0 +1,21 @@
+# Global values; must use 'global' heading.
+global:
+  certManagerEmail: "rhod3rz@outlook.com"
+  certManagerServer: "https://acme-staging-v02.api.letsencrypt.org/directory"
+  # This is the uami assigned to the aks agentpool e.g. aks-tweaks_uai_agentpool_client_id.
+  userAssignedIdentityID: "697024a2-2a28-41ff-b350-d1c84317d4e2"
+  tenantId: "73578441-dc3d-4ecd-a298-fc5c6f40e191"
+  keyvaultName: "kv-prd-titan-230930"
+  mysqlname: "mysql-prd-titan-230930"
+  hostname: "prd.rhod3rz.com"
+  replicas: "1"
+
+# Service specific values; must use chart/folder name & referenced as {{ .Values.image }}.
+votinganalytics:
+  image: "acrdlnteudemoapps210713.azurecr.io/votinganalytics"
+  votingAnalyticsTag: "20230929.11-prd"
+
+# Service specific values; must use chart/folder name & referenced as {{ .Values.image }}.
+votingapp:
+  image: "acrdlnteudemoapps210713.azurecr.io/votingapp"
+  votingAppTag: "20230929.11-prd"

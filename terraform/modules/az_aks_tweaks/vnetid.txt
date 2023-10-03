@@ -1,0 +1,1 @@
+/subscriptions/2bc7b65e-18d6-42ae-afb2-e66d50be6b05/resourceGroups/rg-prd-demo19-230920-nrg/providers/Microsoft.Network/virtualNetworks/aks-vnet-25690867

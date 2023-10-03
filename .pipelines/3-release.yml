@@ -1,0 +1,39 @@
+trigger:
+- none
+
+pr:
+- none
+
+parameters:
+- name: votingAnalyticsTag
+  displayName: Voting Analytics Tag (Required)
+  type: string
+  default: "latest"
+- name: votingAppTag
+  displayName: Voting App Tag (Required)
+  type: string
+  default: "latest"
+
+variables:
+- template: variables/common.yml
+- name: certManagerEmail
+  value: 'rhod3rz@outlook.com'
+- name: certManagerServer
+  value: 'https://acme-staging-v02.api.letsencrypt.org/directory'
+- name: webDomain
+  value: 'rhod3rz.com'
+- name: replicas
+  value: '1'
+
+jobs:
+
+# Deploy voting app manifests to prd.
+- job: 'k8sDeploy'
+  displayName: 'K8s - Deploy'
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - template: templates/helmDeploy.yml
+    parameters:
+      votingAnalyticsTag: ${{ parameters.votingAnalyticsTag }}
+      votingAppTag: ${{ parameters.votingAppTag }}

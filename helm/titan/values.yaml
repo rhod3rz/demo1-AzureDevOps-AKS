@@ -1,0 +1,21 @@
+# Global values; must use 'global' heading.
+global:
+  certManagerEmail: "__certManagerEmail__"
+  certManagerServer: "__certManagerServer__"
+  # This is the uami assigned to the aks agentpool e.g. aks-tweaks_uai_agentpool_client_id.
+  userAssignedIdentityID: "__userAssignedIdentityID__"
+  tenantId: "__tenantId__"
+  keyvaultName: "__keyvaultName__"
+  mysqlname: "__mysqlname__"
+  hostname: "__hostname__"
+  replicas: "__replicas__"
+
+# Service specific values; must use chart/folder name & referenced as {{ .Values.image }}.
+votinganalytics:
+  image: "acrdlnteudemoapps210713.azurecr.io/votinganalytics"
+  votingAnalyticsTag: "__votingAnalyticsTag__"
+
+# Service specific values; must use chart/folder name & referenced as {{ .Values.image }}.
+votingapp:
+  image: "acrdlnteudemoapps210713.azurecr.io/votingapp"
+  votingAppTag: "__votingAppTag__"

@@ -1,0 +1,77 @@
+steps:
+
+#================================================================================================
+# Key Vault
+#================================================================================================
+
+# Remove the ado agent ip from the key vault.
+- task: AzureCLI@2
+  displayName: commonAfter - Key Vault
+  condition: eq(variables['keyvaultWhitelist'], 'true')
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: ps
+    scriptLocation: inlineScript
+    failOnStandardError: true
+    inlineScript: |
+      $agentIp = Invoke-RestMethod -Uri "https://icanhazip.com"
+      $agentIp = $agentIp.Trim()
+      Write-Host "Agent ip is: $agentIp"
+      Write-Host "Key vault name is : $(keyvaultName), and key vault subscription id is : $(keyvaultSubscriptionId)"
+      Write-Host "Removing agent ip from key vault"
+      az keyvault network-rule remove --name $(keyvaultName) --ip-address $agentIp"/32" --subscription $(keyvaultSubscriptionId)
+
+#================================================================================================
+# Terraform State
+#================================================================================================
+
+# Remove the ado agent ip from the terraform state storage account.
+- task: AzureCLI@2
+  displayName: commonAfter - TFState
+  condition: eq(variables['tfStateWhitelist'], 'true')
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: ps
+    scriptLocation: inlineScript
+    failOnStandardError: true
+    inlineScript: |
+      $agentIp = Invoke-RestMethod -Uri "https://icanhazip.com"
+      $agentIp = $agentIp.Trim()
+      Write-Host "Agent ip is: $agentIp"
+      Write-Host "TFState resource group is : $(tfstateResourceGroup)"
+      Write-Host "TFState storage account is : $(tfstateStorageAccount)"
+      az storage account network-rule remove -g $(tfstateResourceGroup) --account-name $(tfstateStorageAccount) --ip-address $agentIp
+
+#================================================================================================
+# AKS
+#================================================================================================
+
+# Remove the ado agent ip from the aks cluster.
+- task: AzureCLI@2
+  displayName: commonAfter - AKS
+  condition: eq(variables['aksWhitelist'], 'true')
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: ps
+    scriptLocation: inlineScript
+    failOnStandardError: true
+    inlineScript: |
+      $agentIp = Invoke-RestMethod -Uri "https://icanhazip.com"
+      $agentIp = $agentIp.Trim() + "/32"
+      Write-Host "Agent ip is: $agentIp"
+      $resourceGroupExists = az group exists --name rg-$(targetEnv)-$(resourceIdentifier)
+      if ($resourceGroupExists -eq "true") {
+        $aksClusterExists = az aks show --name aks-$(targetEnv)-$(resourceIdentifier) --resource-group rg-$(targetEnv)-$(resourceIdentifier) --query "name" -o tsv --only-show-errors
+        if ($aksClusterExists -eq "aks-$(targetEnv)-$(resourceIdentifier)") {
+          $aksInfo = az aks show --resource-group rg-$(targetEnv)-$(resourceIdentifier) --name aks-$(targetEnv)-$(resourceIdentifier) --query apiServerAccessProfile --output json | ConvertFrom-Json
+          $authorizedIpRanges = $aksInfo.authorizedIpRanges -join ','
+          Write-Host "Existing allowed list is: $authorizedIpRanges"
+          $authorizedIpRangesArray = $authorizedIpRanges -split ','
+          $authorizedIpRangesArray = $authorizedIpRangesArray | Where-Object { $_ -ne $agentIp }
+          $authorizedIpRanges = $authorizedIpRangesArray -join ','
+          Write-Host "New allowed list is: $authorizedIpRanges"
+          az aks update --resource-group rg-$(targetEnv)-$(resourceIdentifier) --name aks-$(targetEnv)-$(resourceIdentifier) --api-server-authorized-ip-ranges $authorizedIpRanges
+        }
+      } else {
+        Write-Host "The resource group rg-$(targetEnv)-$(resourceIdentifier) does not exist."
+      }

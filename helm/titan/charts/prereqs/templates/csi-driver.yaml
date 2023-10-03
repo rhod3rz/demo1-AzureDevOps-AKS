@@ -1,0 +1,53 @@
+---
+# SECRET PROVIDER CLASS
+apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: spc-kv-prd-titan-230930
+  namespace: titan
+spec:
+  provider: azure
+
+#================================================================================================
+# Mounted Files - These secrets can be mounted in pods as files.
+#================================================================================================
+
+  parameters:
+    usePodIdentity: "false"
+    useVMManagedIdentity: "true"
+    userAssignedIdentityID: {{ .Values.global.userAssignedIdentityID }}
+    tenantId: {{ .Values.global.tenantId }}
+    keyvaultName: {{ .Values.global.keyvaultName }}
+
+    objects: |
+      array:
+        - |
+          objectName: KV-APPLICATIONINSIGHTS-CONNECTION-STRING
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: KV-SQL-ADMIN-USERNAME
+          objectType: secret
+          objectVersion: ""
+        - |
+          objectName: KV-SQL-ADMIN-PASSWORD
+          objectType: secret
+          objectVersion: ""
+
+#================================================================================================
+# Environment Variables - These secrets can be mounted in pods as environment variables.
+#================================================================================================
+
+  secretObjects:
+  - secretName: so-titan
+    type: Opaque
+
+    data:
+    - objectName: KV-APPLICATIONINSIGHTS-CONNECTION-STRING
+      key: APPLICATIONINSIGHTS-CONNECTION-STRING
+    - objectName: KV-SQL-ADMIN-USERNAME
+      key: SQL-ADMIN-USERNAME
+    - objectName: KV-SQL-ADMIN-PASSWORD
+      key: SQL-ADMIN-PASSWORD
+
+---

@@ -1,0 +1,11 @@
+# Local .terraform files & directories.
+**/.terraform/*
+*.terraform*
+tfplan*
+
+# .tfstate files.
+*.tfstate
+*.tfstate.*
+
+# Custom files.
+_build*.sh

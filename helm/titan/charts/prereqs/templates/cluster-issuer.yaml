@@ -1,0 +1,17 @@
+---
+# CLUSTERISSUER
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-issuer
+spec:
+  acme:
+    email: {{ .Values.global.certManagerEmail }}
+    server: {{ .Values.global.certManagerServer }}
+    privateKeySecretRef:
+      name: letsencrypt-issuer
+    solvers:
+    - http01:
+        ingress:
+          class: azure/application-gateway
+---

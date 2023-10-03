@@ -1,0 +1,28 @@
+steps:
+
+# Install specific version of terraform.
+- task: TerraformInstaller@0
+  displayName: terraformApply - Installer
+  inputs:
+    terraformVersion: $(terraformVersion)
+
+# Download tfplan artifact.
+- task: DownloadPipelineArtifact@2
+  displayName: terraformApply - Download tfplan
+  inputs:
+    artifact: 'tfplan'
+    path: '$(Build.SourcesDirectory)/terraform'
+
+# Run terraform init.
+- pwsh: |
+    terraform init -backend-config="key=env-$(targetEnv).tfstate" -backend-config="access_key=$(KV-ARM-ACCESS-KEY)"
+  displayName: terraformApply - Init
+  workingDirectory: 'terraform'
+
+# Run terraform apply.
+- pwsh: |
+    terraform apply -input=false tfplan
+  displayName: terraformApply - Apply
+  workingDirectory: 'terraform'
+  env:
+    ARM_CLIENT_SECRET: $(KV-ARM-CLIENT-SECRET)

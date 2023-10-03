@@ -1,0 +1,33 @@
+---
+# INGRESS
+# Ensure a DNS A record mapping exists for your URL; Cert-Manager will use this to verify you own the domain.
+# kubectl get secret -n titan                      # Confirm the secret has been created.
+# kubectl describe secret prd.rhod3rz.com -n titan # View the secret details.
+# kubectl get certificate -n titan                 # Check if a cert has been created and the ready status is true.
+# kubectl describe certificate -n titan            # If the ready status is false; run this and look at the events.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx
+  namespace: titan
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway # < add annotation indicating the ingress to use.
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"       # < add annotation to redirect 80 requests to 443.
+    cert-manager.io/cluster-issuer: letsencrypt-issuer     # < add annotation indicating the cert issuer to use.
+spec:
+  tls: # < placing a host in the TLS config will determine what ends up in the cert's subjectAltNames.
+  - hosts:
+    - prd.rhod3rz.com # UPDATE HERE
+    secretName: prd.rhod3rz.com # UPDATE HERE < cert-manager will store the created certificate in this secret.
+  rules:
+  - host: prd.rhod3rz.com # UPDATE HERE
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
+---

@@ -1,0 +1,57 @@
+steps:
+
+# Get secrets from key vault.
+- task: AzureKeyVault@2
+  displayName: helmDeploy - Key Vault Secrets
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    KeyVaultName: "kv-$(targetEnv)-$(resourceIdentifier)"
+    SecretsFilter: '*'
+    RunAsPreJob: false
+
+# Update helm values.yaml with correct connection details.
+- bash: |
+    sed -i.bak 's#__certManagerEmail__#$(certManagerEmail)#' ./*.yaml
+    sed -i.bak 's#__certManagerServer__#$(certManagerServer)#' ./*.yaml
+    sed -i.bak 's#__userAssignedIdentityID__#$(KV-UAI-AKS-AGENTPOOL)#' ./*.yaml
+    sed -i.bak 's#__tenantId__#$(azureTenantId)#' ./*.yaml
+    sed -i.bak 's#__keyvaultName__#kv-$(targetEnv)-$(resourceIdentifier)#' ./*.yaml
+    sed -i.bak 's#__mysqlname__#mysql-$(targetEnv)-$(resourceIdentifier)#' ./*.yaml
+    sed -i.bak 's#__hostname__#$(targetEnv).$(webDomain)#' ./*.yaml
+    sed -i.bak 's#__replicas__#$(replicas)#' ./*.yaml
+    sed -i.bak 's#__votingAnalyticsTag__#${{ parameters.votingAnalyticsTag }}#' ./*.yaml
+    sed -i.bak 's#__votingAppTag__#${{ parameters.votingAppTag }}#' ./*.yaml
+    cat values.yaml
+  displayName: helmDeploy - Update Helm Values
+  workingDirectory: 'helm/titan'
+
+# Helm debug.
+- task: PublishPipelineArtifact@1
+  displayName: helmDeploy - Helm Debug
+  inputs:
+    targetPath: '$(Build.SourcesDirectory)/helm/titan/values.yaml'
+    artifactName: 'values.yaml'
+
+# Helm dry run.
+- task: AzureCLI@2
+  displayName: helmDeploy - Dry Run
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: bash
+    scriptLocation: inlineScript
+    failOnStandardError: false
+    inlineScript: |
+      az aks get-credentials --resource-group rg-$(targetEnv)-$(resourceIdentifier) --name aks-$(targetEnv)-$(resourceIdentifier) --admin
+      helm upgrade titan ./helm/titan --install --namespace titan --dry-run
+
+# Helm deploy.
+- task: AzureCLI@2
+  displayName: helmDeploy - Deploy
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: bash
+    scriptLocation: inlineScript
+    failOnStandardError: false
+    inlineScript: |
+      az aks get-credentials --resource-group rg-$(targetEnv)-$(resourceIdentifier) --name aks-$(targetEnv)-$(resourceIdentifier) --admin
+      helm upgrade titan ./helm/titan --install --namespace titan --create-namespace --wait

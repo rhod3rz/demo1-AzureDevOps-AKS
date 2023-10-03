@@ -1,0 +1,59 @@
+steps:
+
+# Delete old images from acr.
+- task: AzureCLI@2
+  displayName: dockerBuild - Only Retain 3 Images
+  inputs:
+    azureSubscription: $(adoServiceConnection)
+    scriptType: bash
+    scriptLocation: inlineScript
+    failOnStandardError: false
+    inlineScript: |
+      repo='${{ parameters.acrRepo }}'
+      deleteFrom=7
+      tagsToDelete=$(echo $(az acr repository show-tags -n ${{ parameters.acrName }} --repository ${repo} --orderby time_desc --output tsv) | cut -d ' ' -f${deleteFrom}-)
+      for tagToDelete in ${tagsToDelete}; do
+        az acr repository delete --yes -n ${{ parameters.acrName }} --image ${repo}:${tagToDelete}
+      done
+
+# SonarCloud - prepare (prereqs 1. sonarcloud ado add-in, 2. sonarcloud account & token, 3. ado service connection called 'SonarCloud').
+- task: SonarCloudPrepare@1
+  displayName: dockerBuild - SonarCloud - Prepare
+  inputs:
+    SonarCloud: SonarCloud
+    organization: rhod3rz
+    scannerMode: 'CLI'
+    configMode: 'manual'
+    cliProjectKey: 'rhod3rz-demo19-refactor-azuredevops-aks'
+    cliProjectName: 'demo19-refactor-azuredevops-aks'
+    cliSources: './src'
+
+# SonarCloud - analyze.
+- task: SonarCloudAnalyze@1
+  displayName: dockerBuild - SonarCloud - Analyze
+
+# SonarCloud - publish.
+- task: SonarCloudPublish@1
+  displayName: dockerBuild - SonarCloud - Publish
+
+# Build and push a 'versioned' image to ACR.
+- task: Docker@2
+  displayName: dockerBuild - Versioned
+  inputs:
+    command: buildAndPush
+    buildContext: $(Build.Repository.LocalPath)
+    repository: ${{ parameters.acrRepo }}
+    dockerfile: '$(Build.SourcesDirectory)/${{ parameters.dockerPath }}/Dockerfile'
+    containerRegistry: ${{ parameters.acrName }}
+    tags: ${{ parameters.tag }}
+
+# Build and push a 'latest' image to ACR if branch is 'prd' only.
+- task: Docker@2
+  displayName: dockerBuild - Latest
+  inputs:
+    command: buildAndPush
+    buildContext: $(Build.Repository.LocalPath)
+    repository: ${{ parameters.acrRepo }}
+    dockerfile: '$(Build.SourcesDirectory)/${{ parameters.dockerPath }}/Dockerfile'
+    containerRegistry: ${{ parameters.acrName }}
+    tags: 'latest-$(Build.SourceBranchName)'
